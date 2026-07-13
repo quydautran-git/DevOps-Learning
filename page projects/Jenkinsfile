@@ -1,0 +1,77 @@
+pipeline {
+    agent any
+
+    environment {
+        AWS_REGION     = "ap-southeast-1"
+        AWS_ACCOUNT_ID = "527055790396"          // Thay bằng Account ID thật của bạn nếu khác
+        ECR_REPO_NAME  = "cms-backend"           // Thay bằng đúng tên repository ECR bạn đã tạo
+        ECR_REGISTRY   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        IMAGE_TAG      = "${env.BUILD_NUMBER}"
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                checkout scm
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                dir('source-code/backend') {
+                    sh "docker build -t ${ECR_REPO_NAME}:${IMAGE_TAG} ."
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                dir('source-code/backend') {
+                    sh "npm install && npm test"
+                }
+            }
+        }
+
+        stage('Login to ECR') {
+            steps {
+                // EC2 bastion đã có IAM Role gắn sẵn (DO2602-Admin-Role) nên không cần
+                // cấu hình access key/secret key thủ công trong Jenkins.
+                sh """
+                    aws ecr get-login-password --region ${AWS_REGION} \
+                    | docker login --username AWS --password-stdin ${ECR_REGISTRY}
+                """
+            }
+        }
+
+        stage('Tag & Push to ECR') {
+            steps {
+                sh """
+                    docker tag ${ECR_REPO_NAME}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPO_NAME}:${IMAGE_TAG}
+                    docker tag ${ECR_REPO_NAME}:${IMAGE_TAG} ${ECR_REGISTRY}/${ECR_REPO_NAME}:latest
+                    docker push ${ECR_REGISTRY}/${ECR_REPO_NAME}:${IMAGE_TAG}
+                    docker push ${ECR_REGISTRY}/${ECR_REPO_NAME}:latest
+                """
+            }
+        }
+
+        stage('Deploy (run container on this EC2)') {
+            steps {
+                sh """
+                    docker stop cms-backend || true
+                    docker rm cms-backend || true
+                    docker run -d --name cms-backend -p 8000:8000 --restart unless-stopped \
+                        ${ECR_REGISTRY}/${ECR_REPO_NAME}:latest
+                """
+            }
+        }
+    }
+
+    post {
+        success {
+            echo "Build ${IMAGE_TAG} pushed to ECR và deploy thành công."
+        }
+        failure {
+            echo "Pipeline thất bại — kiểm tra log ở stage bị lỗi."
+        }
+    }
+}

@@ -1,0 +1,13 @@
+{
+  "name": "cms-backend",
+  "version": "1.0.0",
+  "description": "CMS Backend API - Mock Project",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "echo \"No tests yet - OK\" && exit 0"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}
