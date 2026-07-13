@@ -4,7 +4,7 @@ pipeline {
     environment {
         AWS_REGION     = "ap-southeast-1"
         AWS_ACCOUNT_ID = "527055790396"          // Thay bằng Account ID thật của bạn nếu khác
-        ECR_REPO_NAME  = "cms-backend"           // Thay bằng đúng tên repository ECR bạn đã tạo
+        ECR_REPO_NAME  = "do2602/dautq-page-project"           // Thay bằng đúng tên repository ECR bạn đã tạo
         ECR_REGISTRY   = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
         IMAGE_TAG      = "${env.BUILD_NUMBER}"
     }
